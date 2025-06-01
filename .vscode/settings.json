@@ -1,0 +1,7 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "i18n-ally.localesPaths": [
+    "packages/backend/src/i18n"
+  ],
+  "github-enterprise.uri": "https://gitlab.urich.work"
+}

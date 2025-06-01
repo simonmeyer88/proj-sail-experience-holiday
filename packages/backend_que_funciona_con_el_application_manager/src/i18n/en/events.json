@@ -1,0 +1,15 @@
+{
+  "CANNOT_BOOK_MORE_THAN_2_CLUB_EVENTS": "You cannot book more than 2 club events at the same time. Cancel a booking to book another event, or wait until you have completed one.",
+  "CANNOT_JOIN_WAITLIST_MORE_THAN_2_CLUB_EVENTS": "You cannot sign up to more than 2 club events at the same time. Leave waitlist to sign up to another event",
+  "ALREADY_STARTED": "This event has already started. You cannot book it now.",
+  "NO_MORE_SLOTS": "There are no more slots available for this event.",
+  "ALREADY_BOOKED_OR_COMPLETED": "You have already booked this event, or you have already completed it.",
+  "TOTAL_SLOTS_LESS_THAN_BOOKED": "The total number of slots available for this event is less than the number of slots already booked.",
+  "START_DATE_MUST_BE_IN_THE_FUTURE": "The date must be in the future.",
+  "END_DATE_MUST_BE_AFTER_START_DATE": "The end date must be after the start date.",
+  "ALREADY_BOOKED_IN_WAITLIST": "User is already booked and cannot join the waitlist.",
+  "ALREADY_IN_WAITLIST": "User is already in the waitlist",
+  "NOT_IN_WAITLIST": "User is not in the waitlist",
+  "CALENDAR_BLOCKED": "Access to calendar events has been blocked",
+  "BOOKING_DISABLED": "Booking is disabled"
+}

@@ -1,0 +1,8 @@
+{
+  "CANNOT_DELETE_ADMIN": "You cannot delete an admin user.",
+  "PHONE_NUMBER_ALREADY_IN_USE": "Phone number already in use by another user.",
+  "ID_NUMBER_ALREADY_IN_USE": "ID already in use by another user.",
+  "ID_BEFORE_TODAY": "ID must be have been issued before today.",
+  "ID_LAST_10_YEARS": "ID must have been issued in the last 10 years.",
+  "AT_LEAST_16_YEARS": "You must be at least 16 years old"
+}

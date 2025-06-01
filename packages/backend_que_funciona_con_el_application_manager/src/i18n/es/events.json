@@ -1,0 +1,15 @@
+{
+  "CANNOT_BOOK_MORE_THAN_2_CLUB_EVENTS": "No puedes reservar más de 2 eventos del club a la vez. Cancela una reserva para poder reservar otro evento, o espera a completarlo.",
+  "CANNOT_JOIN_WAITLIST_MORE_THAN_2_CLUB_EVENTS": "No puedes inscribirte en más de 2 eventos del club al mismo tiempo. Sal de la lista de espera para inscribirte en otro evento.",
+  "ALREADY_STARTED": "El evento ya ha comenzado. No puedes reservarlo.",
+  "NO_MORE_SLOTS": "No quedan plazas disponibles para este evento.",
+  "ALREADY_BOOKED_OR_COMPLETED": "Ya has reservado este evento o lo has completado.",
+  "TOTAL_SLOTS_LESS_THAN_BOOKED": "El número total de plazas disponibles para este evento es menor que el número de plazas ya reservadas.",
+  "START_DATE_MUST_BE_IN_THE_FUTURE": "La fecha del evento debe ser en el futuro.",
+  "END_DATE_MUST_BE_AFTER_START_DATE": "La fecha de finalización del evento debe ser posterior a la fecha de inicio.",
+  "ALREADY_BOOKED_IN_WAITLIST": "El usuario ya está reservado y no puede unirse a la lista de espera.",
+  "ALREADY_IN_WAITLIST": "El usuario ya está en la lista de espera.",
+  "NOT_IN_WAITLIST": "El usuario no está en la lista de espera.",
+  "CALENDAR_BLOCKED": "Se ha bloqueado el acceso a los eventos del calendario.",
+  "BOOKING_DISABLED": "La reserva está deshabilitada"
+}

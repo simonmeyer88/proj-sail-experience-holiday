@@ -1,0 +1,8 @@
+{
+  "CANNOT_DELETE_ADMIN": "No puede eliminar a un administrador",
+  "PHONE_NUMBER_ALREADY_IN_USE": "El número de teléfono ya está en uso por otro usuario",
+  "ID_NUMBER_ALREADY_IN_USE": "El DNI ya está en uso por otro usuario",
+  "ID_BEFORE_TODAY": "El DNI debe haber sido emitido antes de hoy",
+  "ID_LAST_10_YEARS": "El DNI debe haber sido emitido en los últimos 10 años",
+  "AT_LEAST_16_YEARS": "Debes tener al menos 16 años"
+}

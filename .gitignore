@@ -1,0 +1,61 @@
+# ======================
+# Root-Level Ignores
+# ======================
+
+# --- Dependency Directories ---
+**/node_modules/
+**/.yarn/cache/  # Yarn 2+ cache
+**/.pnp.*        # Yarn PnP files
+
+# --- Lockfiles (NPM/Yarn) ---
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# --- Build Artifacts ---
+**/dist/           # NestJS/Vue build output
+**/dist-ssr/       # Vue SSR
+**/.next/          # (Removed - not used)
+**/out/            # (Removed - not used)
+**/dev-dist/       # Vue dev builds
+
+# --- Test & Coverage ---
+**/coverage/
+**/.nyc_output/
+
+# --- Logs ---
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# --- Environment Files ---
+**/.env
+**/.env.*
+!.env.example      # Keep example files
+
+# --- IDE (VSCode Only) ---
+**/.vscode/*
+!**/.vscode/settings.json
+**/.history/       # VSCode temporal files
+
+# --- OS Junk ---
+**/.DS_Store
+**/Thumbs.db
+
+# --- Database Backups/SQL ---
+*.sql
+*.tar.gz
+
+# --- Temporary Files ---
+**/.tmp/
+**/.temp/
+
+*.tar.gz
+*.sql
+
+# ======================
+# Package-Level Ignores
+**/validation-constants.js
+**/validation-constants.d.ts
+**/validation-constants.js.map

@@ -1,0 +1,392 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// Possible Roles for the User model
+enum Role {
+  /// Means user has registered with a verified email and password but has not been onboarded (no personal info available)
+  NEWUSER
+  /// Means user has filled in all the required personal info, and has asked for a student role, but has not been approved by an admin
+  AWAITINGSTUDENT
+  /// Means user has filled in all the required personal info, and has asked for a teacher role, but has not been approved by an admin
+  AWAITINGTEACHER
+  /// User has student role
+  STUDENT
+  /// User has teacher role
+  TEACHER
+  /// User has admin role. It is equal to the TEACHER role, but with more permissions, like user management
+  ADMIN
+}
+
+model User {
+  // AUTH
+  id       String @id @default(uuid())
+  email    String @unique
+  password String @db.Text
+  role     Role   @default(NEWUSER)
+
+  // RELATIONS
+  payments Payment[]
+  chats    ChatsOnUsers[]
+  events   UsersOnEvents[]
+  messages Message[]
+
+  // PROFILE
+  firstName          String?
+  lastName           String?
+  phoneNumber        String?   @unique
+  birthDate          DateTime?
+  address            String?
+  zipCode            String?
+  city               String?
+  idNumber           String?   @unique
+  idIssueDate        DateTime?
+  profilePicturePath String?   @db.Text
+
+  // COURSES
+  isInClub Boolean @default(false)
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  courseId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+
+  /// False means the user has no access to the platform
+  isActive Boolean @default(true)
+
+  // False means the user has no access to the calendar events
+  isCalendarEnable         Boolean   @default(true)
+  calendarBlockingDeadline DateTime?
+
+  passwordRecoveryToken PasswordRecoveryToken?
+  quizAttempts          QuizAttempt[]
+  WebPushSubscription   WebPushSubscription[]
+
+  receiveEmailsOnNewEvent Boolean @default(true)
+}
+
+model WebPushSubscription {
+  id              String   @id @default(uuid())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId          String
+  endpoint        String   @unique @db.VarChar(3000)
+  p256dh          String   @db.VarChar(3000)
+  auth            String   @db.VarChar(3000)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt()
+  chatEnabled     Boolean  @default(false)
+  calendarEnabled Boolean  @default(false)
+}
+
+/// Stores a quiz attempt for a user
+model QuizAttempt {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+/// Stores a password recovery token for a user. That token can be used to reset the user's password when they are locked out.
+/// The expiration of the token is responsibility of the backend app.
+model PasswordRecoveryToken {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  token     String   @db.Text
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+/// Stores an email verification token for a user. That token can be used to verify the user's email when they register or change their email.
+/// It is not associated to a user, because the user might not exist yet.
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  token     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+/// Stores a Zoom Meeting
+model ZoomMeeting {
+  id        String   @id @default(uuid())
+  /// Zoom's meeting ID. Provided by Zoom
+  meetingId String   @unique
+  /// Url that the user can use to join the meeting. Includes the password. Provided by Zooms
+  joinUrl   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+model Video {
+  id        String            @id @default(uuid())
+  url       String
+  title     String
+  courses   VideosOnCourses[]
+  /// Designates the date of the video. Is intended to be used, for example, to group videos by month/year.
+  date      DateTime
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt()
+}
+
+model VideosOnCourses {
+  videoId  String
+  courseId String
+  video    Video  @relation(fields: [videoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([videoId, courseId])
+}
+
+/// Possible methods of payment
+enum PaymentMethod {
+  CASH
+  CARD
+  EFECTIVO
+  STRIPE
+  WOOCOMMERCE
+}
+
+/// Possible types of payment
+enum PaymentType {
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+/// Stores a payment associated to an user. Can be fetched from Stripe or manually created.
+model Payment {
+  id                    String        @id @default(uuid())
+  amount                Float
+  currency              String
+  method                PaymentMethod
+  type                  PaymentType
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId                String
+  description           String?
+  paidAt                DateTime
+  /// Used not to repeat fetched from external services payments
+  stripePaymentIntentId String?       @unique
+  woocommerceOrderId    String?       @unique
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt()
+}
+
+/// Represents a file entity in the file system
+model File {
+  id          String   @id @default(uuid())
+  name        String
+  s3Key       String
+  contentType String
+  folder      Folder   @relation(fields: [folderId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  folderId    String
+  Course      Course   @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  courseId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt()
+}
+
+/// Represents a folder entity in the file system
+model Folder {
+  id   String @id @default(uuid())
+  name String
+
+  files File[]
+
+  folders  Folder[] @relation("SubFolders")
+  parent   Folder?  @relation("SubFolders", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  parentId String?
+
+  isRoot   Boolean @default(false)
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  courseId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+/// Represents a course
+model Course {
+  id      String   @id @default(uuid())
+  name    String   @unique
+  folders Folder[]
+  files   File[]
+
+  videos   VideosOnCourses[]
+  students User[]
+  quizzes  QuizzesOnCourse[]
+
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt()
+  predefinedEvents PredefinedEventOnCourses[]
+}
+
+/// Represents a predefined event. Those are events for courses. 
+/// Every course event is associated to a predefined event.
+model PredefinedEvent {
+  id        String                     @id @default(uuid())
+  title     String
+  events    Event[]
+  createdAt DateTime                   @default(now())
+  updatedAt DateTime                   @updatedAt()
+  courses   PredefinedEventOnCourses[]
+}
+
+model PredefinedEventOnCourses {
+  predefinedEvent   PredefinedEvent @relation(fields: [predefinedEventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  predefinedEventId String
+  course            Course          @relation(fields: [courseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  courseId          String
+
+  @@id([predefinedEventId, courseId])
+}
+
+/// Represents an event. Course events are associated to a predefined event, while club events are not.
+model Event {
+  id                String           @id @default(uuid())
+  /// The start date of the event
+  startDate         DateTime
+  /// The end date of the event
+  endDate           DateTime
+  totalSlots        Int
+  description       String?          @db.Text
+  /// Only present for course events. They provide the title.
+  predefinedEvent   PredefinedEvent? @relation(fields: [predefinedEventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  predefinedEventId String?
+  /// Only present for club events.
+  title             String?
+  isClub            Boolean          @default(false)
+  /// Booked users
+  users             UsersOnEvents[]
+
+  // Waitlist
+  waitlist UsersOnEvents[] @relation("Waitlist")
+
+  visitedUsers UsersOnEvents[] @relation("VisitedUsers")
+
+  // The admin can artificially mark as completed a task.
+  // Internally, it creates a new event in the past, but we do not want to show it at all,
+  // since it is not a real event.
+  // All of this is done to maintain data consistency.
+  isHidden      Boolean @default(false)
+  enableBooking Boolean @default(true)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt()
+  color          String?
+  recurrenceRule String? // Store recurrence pattern (e.g., weekly)
+  recurrenceEnd  DateTime? // End date for recurrence
+}
+
+/// Represents a user booked on an event. Can be completed or not. The backend app is responsible for marking it as completed.
+model UsersOnEvents {
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+
+  isCompleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+
+  waitlistEvent   Event?  @relation("Waitlist", fields: [waitlistEventId], references: [id], onDelete: Cascade)
+  waitlistEventId String?
+
+  visitedEvent   Event?  @relation("VisitedUsers", fields: [visitedEventId], references: [id], onDelete: Cascade)
+  visitedEventId String?
+
+  @@id([userId, eventId])
+}
+
+/// Models a chat. Can be a group chat or a private chat.
+model Chat {
+  id           String         @id @default(uuid())
+  name         String?
+  users        ChatsOnUsers[]
+  /// Not present for private chats
+  pictureS3Key String?
+  /// True if the chat is a group chat, false if it is a private chat
+  isGroup      Boolean
+  messages     Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+model ChatsOnUsers {
+  chatId     String
+  userId     String
+  chat       Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  lastSeenAt DateTime @default(now())
+
+  @@id([chatId, userId])
+}
+
+/// Models a message in a chat
+model Message {
+  id        String    @id @default(uuid())
+  content   String    @db.Text
+  /// Null if the message has not been deleted
+  deletedAt DateTime?
+  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  senderId  String
+  chat      Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  chatId    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt()
+}
+
+model QuizzesOnCourse {
+  quiz     Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  quizId   String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  courseId String
+
+  @@id([quizId, courseId])
+}
+
+/// Represents a quiz. A quiz is a set of questions that the user can answer.
+model Quiz {
+  id                   String            @id @default(uuid())
+  name                 String
+  courses              QuizzesOnCourse[]
+  questions            Question[]
+  nQuestionsPerAttempt Int               @default(10)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+/// Represents a question in a Quiz
+model Question {
+  id      String   @id @default(uuid())
+  content String   @db.Text
+  /// All the possible answers to the question. Only one of them is correct and marked with the isCorrect field
+  answers Answer[]
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  quizId  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+/// Represents an answer to a Quiz Question
+model Answer {
+  id         String   @id @default(uuid())
+  /// Text of the answer
+  content    String   @db.Text
+  /// Whether the answer is correct or not
+  isCorrect  Boolean
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  questionId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}

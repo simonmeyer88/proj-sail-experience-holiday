@@ -1,0 +1,36 @@
+//
+// Theme style
+//
+
+// Initialize
+@import "init";
+
+// Components
+@import "./core/components/components";
+@import "components/components";
+
+// Layout
+@import "./core/layout/base/layout";
+@import "layout/layout";
+
+.swal2-container {
+  z-index: 9999999 !important;
+}
+
+// Custom
+.parent .parent-hover-show {
+  opacity: 0;
+  transition: all 0.1s ease-in-out;
+}
+
+.parent:hover .parent-hover-show {
+  opacity: 1;
+}
+
+header.el-dialog__header {
+  padding-bottom: 10px !important;
+}
+
+.el-dialog__body {
+  padding-top: 15px !important;
+}
