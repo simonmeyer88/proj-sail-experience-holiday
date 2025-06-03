@@ -181,7 +181,6 @@ model Payment {
 model File {
   id          String   @id @default(uuid())
   name        String
-  s3Key       String
   contentType String
   folder      Folder   @relation(fields: [folderId], references: [id], onDelete: NoAction, onUpdate: Cascade)
   folderId    String
