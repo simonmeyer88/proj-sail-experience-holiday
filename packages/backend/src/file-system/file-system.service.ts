@@ -3,24 +3,28 @@ import { CreateFileDto } from './dto/create-file.dto';
 import { v4 as uuid } from 'uuid';
 import { DatabaseService } from 'src/database/database.service';
 import { CreateFolderDto } from './dto/create-folder.dto';
-import { StorageService } from 'src/storage/storage.service';
+// import { StorageService } from 'src/storage/storage.service'; // No longer needed for local storage
 import { UpdateFileDto } from './dto/update-file.dto';
 import { UpdateFolderDto } from './dto/update-folder.dto';
 import { User as IUser } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { DeleteObjectsCommandInput } from '@aws-sdk/client-s3';
 import { STR_MAX_LENGTH } from '@aula-anclademia/common';
+import { LocalStorageService } from 'src/storage/local-storage.service';
+import { extension } from 'mime-types'; // Use mime-types for file extension handling
+import * as fs from "fs";
 
 @Injectable()
 export class FileSystemService {
+  // Remove storageService from constructor
   constructor(
-    private readonly storageService: StorageService,
+    private readonly localStorageService: LocalStorageService,
     private readonly dbService: DatabaseService,
     private readonly configService: ConfigService,
   ) {}
 
   /**
-   * Deletes all entities in S3 that are not referenced in the database
+   * Deletes all entities in local storage that are not referenced in the database
    * @returns The number of deleted files
    */
   public async deleteOrphanedFiles() {
@@ -28,37 +32,28 @@ export class FileSystemService {
       select: { s3Key: true },
     });
 
-    // First, get all S3 keys in the bucket
-    const allS3Keys = await this.storageService
-      .listObjects({
-        Bucket: this.configService.getOrThrow('S3_PRIVATE_BUCKET_NAME'),
-      })
-      .then((res) => res.Contents?.map((obj) => obj.Key));
+    // Get all files in the local materials directory
+    const allLocalFiles = await this.localStorageService.listFiles();
 
-    if (!allS3Keys || allS3Keys.length === 0) {
+    if (!allLocalFiles || allLocalFiles.length === 0) {
       return 0;
     }
 
-    // Then, filter out all keys that are referenced in the database
-    const s3KeysToDelete = allS3Keys.filter(
-      (s3Key) => !files.some((file) => file.s3Key === s3Key),
+    // Filter out all files that are referenced in the database
+    const filesToDelete = allLocalFiles.filter(
+      (filename) => !files.some((file) => file.s3Key == filename.split('.')[0]),
     );
 
-    // Return if it is 0 (S3 will throw an error if we try to delete 0 objects)
-    if (s3KeysToDelete.length === 0) {
+    if (filesToDelete.length === 0) {
       return 0;
     }
 
-    // Finally, delete all keys that are not referenced in the database
-    await this.storageService.deleteObjects({
-      Bucket: this.configService.getOrThrow('S3_PRIVATE_BUCKET_NAME'),
-      Delete: {
-        Objects: s3KeysToDelete.map((s3Key) => ({ Key: s3Key })),
-      },
-    });
+    // Delete all files that are not referenced in the database
+    await Promise.all(filesToDelete.map((filename) => this.localStorageService.deleteFile(filename)));
 
-    return s3KeysToDelete.length;
+    return filesToDelete.length;
   }
+
   public async checkUserAccessToFolder(user: IUser, folderId: string) {
     if (user.role === 'ADMIN' || user.role === 'TEACHER') {
       return true;
@@ -116,29 +111,24 @@ export class FileSystemService {
     file: Express.Multer.File,
   ) {
     await this.dbService.$transaction(async (tx) => {
-      const uploadParams = {
-        Bucket: this.configService.getOrThrow('S3_PRIVATE_BUCKET_NAME'),
-        Key: uuid(),
-        Body: file.buffer,
-        ContentType: file.mimetype,
-      };
-
       const folder = await tx.folder.findUniqueOrThrow({
         where: { id: folderId },
         select: { courseId: true },
       });
 
+      const fileKey = uuid();
+      const fileName = `${fileKey}.${file.originalname.split('.').pop()}`;
+      await this.localStorageService.saveFile(fileName, file.buffer);
+
       await tx.file.create({
         data: {
           courseId: folder.courseId,
-          s3Key: uploadParams.Key,
+          s3Key: fileKey,
           folderId,
           name: createFileDto.name,
           contentType: file.mimetype,
         },
       });
-
-      await this.storageService.putObject(uploadParams);
     });
   }
 
@@ -148,13 +138,6 @@ export class FileSystemService {
   ) {
     await this.dbService.$transaction(async (tx) => {
       const promises = files.map(async (file) => {
-        const uploadParams = {
-          Bucket: this.configService.getOrThrow('S3_PRIVATE_BUCKET_NAME'),
-          Key: uuid(),
-          Body: file.buffer,
-          ContentType: file.mimetype,
-        };
-
         const folder = await tx.folder.findUnique({
           where: { id: folderId },
           select: { courseId: true },
@@ -177,17 +160,19 @@ export class FileSystemService {
           name = name.slice(0, STR_MAX_LENGTH);
         }
 
+        const fileKey = uuid();
+        const fileName = `${fileKey}.${extension}`;
+        await this.localStorageService.saveFile(fileName, file.buffer);
+        
         await tx.file.create({
           data: {
             courseId: folder.courseId,
-            s3Key: uploadParams.Key,
+            s3Key: fileKey,
             folderId,
             name: name,
             contentType: file.mimetype,
           },
         });
-
-        await this.storageService.putObject(uploadParams);
       });
       await Promise.all(promises);
     });
@@ -251,12 +236,7 @@ export class FileSystemService {
           select: { s3Key: true },
         });
 
-        const params = {
-          Bucket: this.configService.getOrThrow('S3_PRIVATE_BUCKET_NAME'),
-          Key: file.s3Key,
-        };
-
-        await this.storageService.deleteObject(params);
+        await this.localStorageService.deleteFile(file.s3Key);
 
         await tx.file.delete({ where: { id } });
       },
@@ -269,13 +249,24 @@ export class FileSystemService {
   public async generateDownloadUrl(id: string) {
     const file = await this.dbService.file.findUnique({
       where: { id },
-      select: { s3Key: true },
+      select: { s3Key: true, contentType: true},
     });
 
-    return await this.storageService.generateGetSignedUrl({
-      s3Key: file.s3Key,
-      expires: 60 * 5,
-    });
+    // For local storage, just return a direct URL (you may want to secure this in production)
+    const ext = extension(file.contentType);
+    const filename = file.s3Key + (ext ? `.${ext}` : '');
+
+    const filePath = this.localStorageService.getFilePath(filename);
+
+    if (!fs.existsSync(filePath)) throw new BadRequestException('File not found on disk');
+    
+    const headers = {
+      'Content-Type': file.contentType,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+    }
+
+    const stream = fs.createReadStream(filePath)
+    return { headers, stream };
   }
 
   public async removeFolder(id: string) {
@@ -294,15 +285,9 @@ export class FileSystemService {
           select: { s3Key: true },
         });
 
-        const params: DeleteObjectsCommandInput = {
-          Bucket: this.configService.getOrThrow('S3_PRIVATE_BUCKET_NAME'),
-          Delete: {
-            Objects: files.map((file) => ({ Key: file.s3Key })),
-          },
-        };
-
-        if (params.Delete.Objects.length > 0)
-          await this.storageService.deleteObjects(params);
+        if (files.length > 0) {
+          await Promise.all(files.map((file) => this.localStorageService.deleteFile(file.s3Key)));
+        }
 
         // first delete files, then the folder
         await tx.file.deleteMany({ where: { folderId: id } });

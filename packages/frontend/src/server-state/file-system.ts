@@ -159,10 +159,24 @@ export const useUpdateFile = () => {
 export const useGenerateFileDownloadUrl = () => {
   return useMutation({
     mutationFn: async (fileId: string) => {
-      const data = await ApiService.get(
-        `/file-system/files/${fileId}/download`
+      const response = await ApiService.vueInstance.axios.get(
+        `/file-system/files/${fileId}/download`,
+        {
+          responseType: 'blob',
+          validateStatus: () => true, // 👈 allow any status so we can check manually
+        }
       );
-      return data;
+
+      const contentType = response.headers['content-type'];
+      console.log("Content-Type:", contentType);
+
+      // ❗If it's not the actual file type, it's an error
+      if (!contentType || contentType.includes('application/json') || contentType.includes('text')) {
+        const text = await response.data.text?.();
+        throw new Error(`Unexpected response: ${text || 'non-blob data'}`);
+      }
+
+      return response.data;
     },
     mutationKey: ["generateFileDownloadUrl"],
   });

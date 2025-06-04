@@ -130,16 +130,19 @@ const generateFileDownloadUrl = useGenerateFileDownloadUrl();
 const handleFileOpen = async (fileId: string) => {
   try {
     isLoading.value = true;
-    const downloadUrl = await generateFileDownloadUrl.mutateAsync(fileId);
-    if (typeof downloadUrl !== "string") {
-      throw new Error("Invalid url");
-    }
-    const link = document.createElement("a");
 
-    const blob = await fetch(downloadUrl).then((r) => r.blob());
+    const blob = await generateFileDownloadUrl.mutateAsync(fileId);
+
+    if (!(blob instanceof Blob)) {
+      throw new Error("Invalid blob");
+    }
+
+    const link = document.createElement("a");
     link.href = window.URL.createObjectURL(blob);
     link.download = props.fileTitle;
+    document.body.appendChild(link);
     link.click();
+    link.remove();
   } catch (e) {
     console.error("❌ Error downloading file", e);
   } finally {

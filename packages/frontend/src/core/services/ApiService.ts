@@ -62,11 +62,13 @@ class ApiService {
 
   public static async get<R>(
     resource: string,
-    params?: Record<string, any>
+    params?: Record<string, any>,
+    config: AxiosRequestConfig = {}
   ): Promise<R> {
     try {
       return (
         await ApiService.vueInstance.axios.get<R>(resource, {
+          ...config,
           params: params,
           paramsSerializer: {
             serialize: (params: any) => {

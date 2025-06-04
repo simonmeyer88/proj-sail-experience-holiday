@@ -11,7 +11,9 @@ import {
   MaxFileSizeValidator,
   UploadedFiles,
   ForbiddenException,
+  StreamableFile,
   Logger,
+  Res
 } from '@nestjs/common';
 import { FileSystemService } from './file-system.service';
 import { CreateFileDto } from './dto/create-file.dto';
@@ -29,6 +31,7 @@ import { User } from 'src/auth/user.decorator';
 import { User as IUser } from '@prisma/client';
 import { GetFolderContentResponse } from './response/get-folder-content.response';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { Response } from 'express';
 
 @Controller('/file-system')
 export class FileSystemController {
@@ -139,8 +142,11 @@ export class FileSystemController {
   }
 
   @Auth('ADMIN', 'TEACHER', 'STUDENT')
+  
   @Get('files/:id/download')
-  public async generateSignedUrl(@Param('id') id: string): Promise<string> {
-    return await this.fileSystemService.generateDownloadUrl(id);
+  public async generateSignedUrl(@Param('id') id: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+    const {headers, stream} = await this.fileSystemService.generateDownloadUrl(id);
+    res.set(headers);
+    return new StreamableFile(stream);
   }
 }
